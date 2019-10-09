@@ -14,6 +14,8 @@
 # Math functionalities for tf-graphics.
 
 # google internal package dependency 8)
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_custom_op_library", "tf_gen_op_wrapper_py")
+load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_custom_op_py_library")
 # google internal package dependency 5
 
 licenses(["notice"])  # Apache 2.0
@@ -56,8 +58,9 @@ cc_library(
     deps = [
         ":EGL_headers",
         ":egl_util",
-        ":gl_macros",
+        ":macros",
         "//tensorflow_graphics/util:cleanup",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -96,11 +99,13 @@ cc_test(
 )
 
 cc_library(
-    name = "gl_macros",
-    hdrs = ["gl_macros.h"],
+    name = "macros",
+    hdrs = ["macros.h"],
+    visibility = ["//visibility:private"],
     deps = [
         ":EGL_headers",
         "@com_google_absl//absl/strings",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -117,12 +122,12 @@ cc_library(
     name = "gl_utils",
     srcs = ["gl_utils.cc"],
     hdrs = ["gl_utils.h"],
-    visibility = ["//visibility:private"],
     deps = [
-        ":gl_macros",
+        ":macros",
         "//tensorflow_graphics/util:cleanup",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -163,7 +168,7 @@ py_test(
     srcs = ["tests/math_test.py"],
     srcs_version = "PY2AND3",
     # google internal rule 1
-    # google internal rule 2
+    # google internal rule 4
     # google internal rule 3
     # google internal rule 4
     # google internal rule 5
@@ -183,6 +188,7 @@ cc_library(
     deps = [
         ":gl_utils",
         "//tensorflow_graphics/util:cleanup",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -203,6 +209,61 @@ cc_test(
 )
 
 cc_library(
+    name = "rasterizer_op_lib",
+    srcs = ["rasterizer_op.cc"],
+    deps = [
+        ":macros",
+        ":rasterizer_with_context",
+        ":thread_safe_resource_pool",
+        "@com_google_absl//absl/types:span",
+        "@org_tensorflow//tensorflow/core:framework",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+    alwayslink = 1,
+)
+
+tf_custom_op_library(
+    name = "rasterizer_op.so",
+    srcs = [
+        "egl_offscreen_context.cc",
+        "egl_offscreen_context.h",
+        "egl_util.cc",
+        "egl_util.h",
+        "gl_utils.cc",
+        "gl_utils.h",
+        "macros.h",
+        "rasterizer.h",
+        "rasterizer_op.cc",
+        "rasterizer_with_context.h",
+        "thread_safe_resource_pool.h",
+    ],
+    deps = [
+        ":EGL_headers",
+        "//tensorflow_graphics/util:cleanup",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+tf_gen_op_wrapper_py(
+    name = "gen_rasterizer_op_py",
+    out = "gen_rasterizer_op.py",
+    deps = [
+        ":gl_native_libs",
+        ":rasterizer_op_lib",
+    ],
+)
+
+tf_custom_op_py_library(
+    name = "rasterizer_op_py",
+    dso = [":rasterizer_op.so"],
+    kernels = [
+        ":rasterizer_op_lib",
+    ],
+    deps = [":gen_rasterizer_op_py"],
+)
+
+cc_library(
     name = "rasterizer_with_context",
     hdrs = ["rasterizer_with_context.h"],
     deps = [
@@ -210,6 +271,7 @@ cc_library(
         ":gl_utils",
         ":rasterizer",
         "//tensorflow_graphics/util:cleanup",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -225,6 +287,7 @@ cc_test(
         ":rasterizer_with_context",
         ":thread_safe_resource_pool",
         "@com_google_googletest//:gtest_main",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -232,7 +295,9 @@ cc_library(
     name = "thread_safe_resource_pool",
     hdrs = ["thread_safe_resource_pool.h"],
     deps = [
+        ":macros",
         "@com_google_absl//absl/synchronization",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -242,5 +307,6 @@ cc_test(
     deps = [
         ":thread_safe_resource_pool",
         "@com_google_googletest//:gtest_main",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
